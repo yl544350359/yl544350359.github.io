@@ -1,5 +1,5 @@
 // level -> index
-export const SUPPLY_DATA ={
+export const SUPPLY_DATA = {
     1: [[774,940],[8,762]],
     2: [[121,848],[149, 458]],
     3: [[808,248]],
@@ -10,7 +10,7 @@ export const SUPPLY_DATA ={
 }
 
 // index -> level
-export const supplyMap = () => {
+export const buildSupplyMap = () => {
     const map = new Map<string, number>();
     Object.entries(SUPPLY_DATA).forEach(([level, coords]) => {
       const lv = parseInt(level);
@@ -19,7 +19,8 @@ export const supplyMap = () => {
     return map;
 }
 
-export const LEVEL_COLORS = {
+export const LEVEL_COLORS: {[key: number]: string} = {
+    0: '#E5E5E5',
     1: '#FFB3BA',
     2: '#FFDFBA',
     3: '#FFFFBA',
