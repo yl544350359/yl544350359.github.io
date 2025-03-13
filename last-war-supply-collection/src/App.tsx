@@ -17,8 +17,8 @@ interface CoordTpe {
   }
 }
 
-const RECT_WIDTH = 20
-const RECT_HEIGHT = 20
+const RECT_WIDTH = 50
+const RECT_HEIGHT = 50
 function App() {
   const [viewport, setViewport] = useState({ x: 0, y: 0, scale: 1 })
   const [selectedCoord, setSelectedCoord] = useState<CoordTpe|null>(null)
@@ -26,6 +26,22 @@ function App() {
   const [infoOpen, setInfoOpen] = useState(true)
 
   const SUPPLY_MAP = useMemo(buildSupplyMap, [])
+
+  const handleWheel = (e:Konva.KonvaEventObject<WheelEvent>) => {
+    e.evt.preventDefault()
+    const scaleBy = 1.1
+    const stage = e.target.getStage()!
+    const newScale = e.evt.deltaY < 0 ? viewport.scale * scaleBy : viewport.scale / scaleBy
+    const mousePointTo = {
+      x: stage.getPointerPosition()!.x / viewport.scale - stage.x() / viewport.scale,
+      y: stage.getPointerPosition()!.y / viewport.scale - stage.y() / viewport.scale
+    }
+    setViewport({
+      scale: newScale,
+      x: -(mousePointTo.x - stage!.getPointerPosition()!.x / newScale) * newScale,
+      y: -(mousePointTo.y - stage!.getPointerPosition()!.y / newScale) * newScale
+    })
+  }
 
   const bind = useGesture({
     onDrag: ({ delta: [dx, dy] }) => {
@@ -54,10 +70,16 @@ function App() {
     const pos = stage.getPointerPosition()!
     const x = Math.floor((pos.x - viewport.x) / (RECT_WIDTH * viewport.scale))
     const y = Math.floor((pos.y - viewport.y) / (RECT_HEIGHT * viewport.scale))
-    
     if (x >= 0 && x < 1000 && y >= 0 && y < 1000) {
-      setSelectedCoord({ x: x, y: y, pos: pos })
+      setSelectedCoord({ x: 999 - x, y: 999 - y, pos: pos })
     }
+  }
+
+  const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+    const stage = e.target.getStage()!
+    const x = stage.x()
+    const y = stage.y()
+    setViewport({ ...viewport,x: x, y: y })
   }
 
   const stats = useMemo(() => {
@@ -87,20 +109,24 @@ function App() {
           toggleOpen={() => setInfoOpen(!infoOpen)}
         />
       </div>
+      <div className='absolute bottom-6 z-10 left-1/2 bg-white rounded p-3'>{`(${selectedCoord?.x ?? '-'},${selectedCoord?.y ?? '-'}) pos(${selectedCoord?.pos.x ?? '-'},${selectedCoord?.pos.y ?? '-'})`}</div>
       <Stage
-        {...bind() as React.ComponentProps<typeof Stage>}
+        // {...bind() as React.ComponentProps<typeof Stage>}
         width={window.innerWidth}
         height={window.innerHeight}
+        onWheel={handleWheel}
         x={viewport.x}
         y={viewport.y}
         scaleX={viewport.scale}
         scaleY={viewport.scale}
         onClick={handleStageClick}
+        // onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
         draggable
       >
         <Layer>
-        {Array.from({ length: 10 }, (_, x) => (
-            Array.from({ length: 10 }, (_, y) => {
+        {Array.from({ length: 100 }, (_, x) => (
+            Array.from({ length: 100 }, (_, y) => {
               const key = `${x},${y}`
               // const level = SUPPLY_MAP.get(key) ?? 0
               // const isCollected = collected.has(key)
