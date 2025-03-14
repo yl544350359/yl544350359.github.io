@@ -1,7 +1,7 @@
-import React, {useState, useMemo} from 'react'
-import { Stage, Layer, Rect, Text } from 'react-konva'
+import React, {useState, useMemo, useEffect, useRef} from 'react'
+import { Stage, Layer, Rect } from 'react-konva'
 import Konva from 'konva'
-import { useGesture } from '@use-gesture/react'
+import Hammer from 'hammerjs'
 import useLocalStorage from './useLocalStorage'
 import InfoPanel from './InfoPanel'
 import {SUPPLY_DATA, buildSupplyMap, LEVEL_COLORS} from './data'
@@ -24,6 +24,7 @@ function App() {
   const [selectedCoord, setSelectedCoord] = useState<CoordTpe|null>(null)
   const [collected, setCollected] = useLocalStorage<Set<string>>('collected', new Set())
   const [infoOpen, setInfoOpen] = useState(true)
+  const stageRef = useRef<Konva.Stage>(null)
 
   const SUPPLY_MAP = useMemo(buildSupplyMap, [])
 
@@ -43,28 +44,6 @@ function App() {
     })
   }
 
-  const bind = useGesture({
-    onDrag: ({ delta: [dx, dy] }) => {
-      setViewport(v => ({
-        ...v,
-        x: v.x + dx,
-        y: v.y + dy
-      }))
-    },
-    onPinch: ({ origin: [ox, oy], movement: [ms], event }) => {
-      event.preventDefault();
-      const newScale = Math.min(1, Math.max(0.1, viewport.scale * ms));
-      setViewport(v => ({
-        ...v,
-        scale: newScale
-      }))
-    },
-    onWheel: ({ delta: [, dy] }) => {
-      const newScale = Math.min(1, Math.max(0.1, viewport.scale * (1 + dy * 0.01)))
-      setViewport(v => ({ ...v, scale: newScale }))
-    }
-  })
-
   const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
     const stage = e.target.getStage()!
     const pos = stage.getPointerPosition()!
@@ -81,6 +60,25 @@ function App() {
     const y = stage.y()
     setViewport({ ...viewport,x: x, y: y })
   }
+
+  useEffect(() => {
+    const stage = stageRef.current!.getStage()
+    const hammer = new Hammer(stage.content)
+    hammer.get('pinch').set({ enable: true })
+    hammer.on('pinchmove', (e) => {
+      e.preventDefault()
+
+      const scale = viewport.scale * e.scale;
+      setViewport((prev) => ({
+        ...prev,
+        scale,
+      }))
+    })
+
+    return () => {
+      hammer.destroy()
+    }
+  },[viewport.scale])
 
   const stats = useMemo(() => {
     const total = new Map<number, number>()
@@ -111,7 +109,7 @@ function App() {
       </div>
       <div className='absolute bottom-6 z-10 left-1/2 bg-white rounded p-3'>{`(${selectedCoord?.x ?? '-'},${selectedCoord?.y ?? '-'}) pos(${selectedCoord?.pos.x ?? '-'},${selectedCoord?.pos.y ?? '-'})`}</div>
       <Stage
-        // {...bind() as React.ComponentProps<typeof Stage>}
+        ref={stageRef}
         width={window.innerWidth}
         height={window.innerHeight}
         onWheel={handleWheel}
@@ -120,7 +118,6 @@ function App() {
         scaleX={viewport.scale}
         scaleY={viewport.scale}
         onClick={handleStageClick}
-        // onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         draggable
       >
