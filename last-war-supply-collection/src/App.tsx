@@ -1,4 +1,4 @@
-import React, {useState, useMemo, useEffect, useRef} from 'react'
+import React, {useState, useMemo, useEffect, useRef, useCallback} from 'react'
 import { Stage, Layer, Rect } from 'react-konva'
 import Konva from 'konva'
 import Hammer from 'hammerjs'
@@ -19,8 +19,12 @@ interface CoordTpe {
 
 const RECT_WIDTH = 50
 const RECT_HEIGHT = 50
+const totalRows = 100
+const totalCols = 100
+
 function App() {
   const [viewport, setViewport] = useState({ x: 0, y: 0, scale: 1 })
+  // const [visibleRects, setVisibleRects] = useState<{ x: number; y: number }[]>([])
   const [selectedCoord, setSelectedCoord] = useState<CoordTpe|null>(null)
   const [collected, setCollected] = useLocalStorage<Set<string>>('collected', new Set())
   const [infoOpen, setInfoOpen] = useState(true)
@@ -61,6 +65,43 @@ function App() {
     setViewport({ ...viewport,x: x, y: y })
   }
 
+  const throttle = (func: Function, delay: number) => {
+    let inThrottle: boolean = false
+    return function(...args: any[]) {
+      if (!inThrottle) {
+        func(...args)
+        inThrottle = true;
+        setTimeout(() => inThrottle = false, delay);
+      }
+    };
+  };
+
+  const visibleRects = useMemo(() => {
+    // const stage = stageRef.current
+    // if (!stage) return []
+
+    const startCol = Math.floor(-viewport.x/RECT_WIDTH*viewport.scale)
+    const endCol = Math.ceil((window.innerWidth-viewport.x)/RECT_WIDTH*viewport.scale)
+
+    const startRow = Math.floor(-viewport.y/RECT_HEIGHT*viewport.scale)
+    const endRow = Math.ceil((window.innerWidth-viewport.y)/RECT_HEIGHT*viewport.scale)
+    const limitedStartCol = Math.max(0, startCol)
+    const limitedEndCol = Math.min(totalCols -1, endCol)
+
+    const limitedStartRow = Math.max(0, startRow)
+    const limitedEndRow = Math.min(totalRows-1, endRow)
+    const rects=[]
+    for(let row = limitedStartRow; row<=limitedEndRow;row++) {
+      for(let col = limitedStartCol; col<=limitedEndCol;col++) {
+        rects.push({
+          x: col * RECT_WIDTH,
+          y: row * RECT_HEIGHT
+        })
+      }
+    }
+    return rects
+  },[viewport])
+
   useEffect(() => {
     const stage = stageRef.current!.getStage()
     const hammer = new Hammer(stage.content)
@@ -97,7 +138,7 @@ function App() {
 
     return { total, collectedCount }
   }, [collected])
-
+  console.log(visibleRects.length)
   return (
     <div className="w-screen h-screen relative overflow-hidden">
       <div className="absolute top-6 right-6 z-10">
@@ -107,7 +148,7 @@ function App() {
           toggleOpen={() => setInfoOpen(!infoOpen)}
         />
       </div>
-      <div className='absolute bottom-6 z-10 left-1/2 bg-white rounded p-3'>{`(${selectedCoord?.x ?? '-'},${selectedCoord?.y ?? '-'}) pos(${selectedCoord?.pos.x ?? '-'},${selectedCoord?.pos.y ?? '-'})`}</div>
+      <div className='fixed bottom-6 z-10 left-1/2 -translate-x-8 bg-white rounded p-3'>{`(${selectedCoord?.x ?? '-'},${selectedCoord?.y ?? '-'}) pos(${selectedCoord?.pos.x ?? '-'},${selectedCoord?.pos.y ?? '-'})`}</div>
       <Stage
         ref={stageRef}
         width={window.innerWidth}
@@ -121,26 +162,19 @@ function App() {
         onDragEnd={handleDragEnd}
         draggable
       >
-        <Layer>
-        {Array.from({ length: 100 }, (_, x) => (
-            Array.from({ length: 100 }, (_, y) => {
-              const key = `${x},${y}`
-              // const level = SUPPLY_MAP.get(key) ?? 0
-              // const isCollected = collected.has(key)
-              
-              return <Rect
-                  key={key}
-                  x={x * RECT_WIDTH}
-                  y={y * RECT_HEIGHT}
-                  width={RECT_WIDTH}
-                  height={RECT_HEIGHT}
-                  // fill={isCollected ? '#00FF00' : LEVEL_COLORS[level]}
-                  fill ='#00FF00'
-                  stroke="black"
-                  strokeWidth={1}
-                />
-            })
-          ))}
+        <Layer cache>
+          {visibleRects.map((rect, index) => {
+            return <Rect 
+              key={index}
+              x={rect.x}
+              y={rect.y}
+              width={RECT_WIDTH}
+              height={RECT_HEIGHT}
+              fill='#00FF00'
+              stroke="black"
+              strokeWidth={1}
+            />
+          })}
         </Layer>
         </Stage>
     </div>
