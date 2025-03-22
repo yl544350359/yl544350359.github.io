@@ -5,6 +5,7 @@ import Hammer from 'hammerjs'
 import useLocalStorage from './useLocalStorage'
 import InfoPanel from './InfoPanel'
 import {SUPPLY_DATA, buildSupplyMap, LEVEL_COLORS} from './data'
+import {getCurrentColor, getBorderSize } from './utilities'
 
 interface CoordTpe {
   // coordinate in game map
@@ -19,12 +20,12 @@ interface CoordTpe {
 
 const RECT_WIDTH = 50
 const RECT_HEIGHT = 50
-const totalRows = 100
-const totalCols = 100
+const totalRows = 1000
+const totalCols = 1000
+const MAX_LOD_LEVEL = 3
 
 function App() {
   const [viewport, setViewport] = useState({ x: 0, y: 0, scale: 1 })
-  // const [visibleRects, setVisibleRects] = useState<{ x: number; y: number }[]>([])
   const [selectedCoord, setSelectedCoord] = useState<CoordTpe|null>(null)
   const [collected, setCollected] = useLocalStorage<Set<string>>('collected', new Set())
   const [infoOpen, setInfoOpen] = useState(true)
@@ -65,42 +66,49 @@ function App() {
     setViewport({ ...viewport,x: x, y: y })
   }
 
-  const throttle = (func: Function, delay: number) => {
-    let inThrottle: boolean = false
-    return function(...args: any[]) {
-      if (!inThrottle) {
-        func(...args)
-        inThrottle = true;
-        setTimeout(() => inThrottle = false, delay);
-      }
-    };
-  };
+  const calculateLodLevel = (scale: number)=>{
+    if(scale>0.2) return 0;
+    let level = 0
+    let threshold = 0.2
+
+    while(scale<threshold && level<MAX_LOD_LEVEL) {
+      level++
+      threshold/=5
+    }
+    return level
+  }
 
   const visibleRects = useMemo(() => {
-    // const stage = stageRef.current
-    // if (!stage) return []
-
-    const startCol = Math.floor(-viewport.x/RECT_WIDTH*viewport.scale)
-    const endCol = Math.ceil((window.innerWidth-viewport.x)/RECT_WIDTH*viewport.scale)
-
-    const startRow = Math.floor(-viewport.y/RECT_HEIGHT*viewport.scale)
-    const endRow = Math.ceil((window.innerWidth-viewport.y)/RECT_HEIGHT*viewport.scale)
+    const lodLevel = calculateLodLevel(viewport.scale)
+    const currentRectWidth = RECT_WIDTH*Math.pow(5, lodLevel)
+    const currentRectHeight = RECT_HEIGHT*Math.pow(5, lodLevel)
+    const lodMapWidth = Math.ceil(totalCols/Math.pow(5, lodLevel))
+    const lodMapHeight = Math.ceil(totalRows/Math.pow(5, lodLevel))
+    
+    const startCol = Math.floor(-viewport.x/currentRectWidth*viewport.scale)
+    const endCol = Math.ceil((window.innerWidth-viewport.x)/(currentRectWidth*viewport.scale))
+    const startRow = Math.floor(-viewport.y/currentRectHeight*viewport.scale)
+    const endRow = Math.ceil((window.innerHeight-viewport.y)/(currentRectHeight*viewport.scale))
     const limitedStartCol = Math.max(0, startCol)
-    const limitedEndCol = Math.min(totalCols -1, endCol)
+    const limitedEndCol = Math.min(lodMapWidth -1, endCol)
 
     const limitedStartRow = Math.max(0, startRow)
-    const limitedEndRow = Math.min(totalRows-1, endRow)
+    const limitedEndRow = Math.min(lodMapHeight-1, endRow)
     const rects=[]
     for(let row = limitedStartRow; row<=limitedEndRow;row++) {
       for(let col = limitedStartCol; col<=limitedEndCol;col++) {
         rects.push({
-          x: col * RECT_WIDTH,
-          y: row * RECT_HEIGHT
+          x: col * currentRectWidth,
+          y: row * currentRectHeight,
+          currentWidth:currentRectWidth,
+          currentHeight: currentRectHeight,
+          color: getCurrentColor(999-col, 999-row, lodLevel, SUPPLY_MAP),
+          lodLevel: lodLevel
         })
       }
     }
     return rects
-  },[viewport])
+  },[viewport.x, viewport.y, viewport.scale])
 
   useEffect(() => {
     const stage = stageRef.current!.getStage()
@@ -138,7 +146,7 @@ function App() {
 
     return { total, collectedCount }
   }, [collected])
-  console.log(visibleRects.length)
+
   return (
     <div className="w-screen h-screen relative overflow-hidden">
       <div className="absolute top-6 right-6 z-10">
@@ -168,11 +176,11 @@ function App() {
               key={index}
               x={rect.x}
               y={rect.y}
-              width={RECT_WIDTH}
-              height={RECT_HEIGHT}
-              fill='#00FF00'
+              width={rect.currentWidth}
+              height={rect.currentHeight}
+              fill={rect.color}
               stroke="black"
-              strokeWidth={1}
+              strokeWidth={getBorderSize(rect.lodLevel)}
             />
           })}
         </Layer>
