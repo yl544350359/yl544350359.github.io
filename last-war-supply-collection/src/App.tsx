@@ -5,7 +5,7 @@ import Hammer from 'hammerjs'
 import useLocalStorage from './useLocalStorage'
 import InfoPanel from './InfoPanel'
 import {SUPPLY_DATA, buildSupplyMap, LEVEL_COLORS} from './data'
-import {getCurrentColor, getBorderSize } from './utilities'
+import {getCurrentColor, getBorderSize, precomputeLODMap } from './utilities'
 
 interface CoordTpe {
   // coordinate in game map
@@ -31,7 +31,18 @@ function App() {
   const [infoOpen, setInfoOpen] = useState(true)
   const stageRef = useRef<Konva.Stage>(null)
 
-  const SUPPLY_MAP = useMemo(buildSupplyMap, [])
+  const cache = useMemo(()=>{
+    const totalMap = new Map<number, Map<string,number>>()
+    const level0Map = buildSupplyMap()
+    totalMap.set(0, level0Map)
+    const level1Map = precomputeLODMap(1, level0Map)
+    totalMap.set(1, level1Map)
+    const level2Map = precomputeLODMap(2, level1Map)
+    totalMap.set(2, level2Map)
+    const level3Map = precomputeLODMap(3, level2Map)
+    totalMap.set(3, level3Map)
+    return totalMap
+  }, [])
 
   const handleWheel = (e:Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault()
@@ -102,7 +113,7 @@ function App() {
           y: row * currentRectHeight,
           currentWidth:currentRectWidth,
           currentHeight: currentRectHeight,
-          color: getCurrentColor(999-col, 999-row, lodLevel, SUPPLY_MAP),
+          color: getCurrentColor(col,row, lodLevel, cache),
           lodLevel: lodLevel
         })
       }
@@ -140,7 +151,7 @@ function App() {
     });
 
     collected.forEach(coord => {
-      const lv = SUPPLY_MAP.get(coord)
+      const lv = cache.get(0)!.get(coord)
       if (lv) collectedCount.set(lv, collectedCount.get(lv)??0 +1)
     })
 
