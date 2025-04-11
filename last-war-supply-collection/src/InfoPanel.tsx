@@ -1,17 +1,17 @@
-import React, {FC} from 'react';
+import React, { FC } from "react";
 
 export interface PanelProps {
-    stats: {
-        total: Map<number, number>,
-        collectedCount: Map<number, number>
-    },
-    isOpen: boolean
-    toggleOpen: () => void
+  stats: {
+    total: Map<number, number>;
+    collectedCount: Map<number, number>;
+  };
+  isOpen: boolean;
+  toggleOpen: () => void;
 }
 const InfoPanel: FC<PanelProps> = ({ stats, isOpen, toggleOpen }) => {
   if (!isOpen) {
     return (
-      <button 
+      <button
         onClick={toggleOpen}
         className="bg-blue-500 text-white p-2 rounded-l"
       >
@@ -24,7 +24,7 @@ const InfoPanel: FC<PanelProps> = ({ stats, isOpen, toggleOpen }) => {
     <div className="bg-white p-4 shadow-lg w-64">
       <div className="flex justify-between mb-4">
         <h2 className="text-xl font-bold">物资统计</h2>
-        <button 
+        <button
           onClick={toggleOpen}
           className="text-gray-500 hover:text-gray-700"
         >
@@ -32,18 +32,21 @@ const InfoPanel: FC<PanelProps> = ({ stats, isOpen, toggleOpen }) => {
         </button>
       </div>
 
-      {[1, 2, 3, 4, 5, 6, 7].map(level => (
+      {[1, 2, 3, 4, 5, 6, 7].map((level) => (
         <div key={level} className="mb-2">
           <div className="flex justify-between">
             <span>等级 {level}:</span>
             <span>
-              {stats.collectedCount.get(level) || 0} / {stats.total.get(level) || 0}
+              {stats.collectedCount.get(level) || 0} /{" "}
+              {stats.total.get(level) || 0}
             </span>
           </div>
           <div className="h-1 bg-gray-200 rounded">
-            <div 
+            <div
               className="h-full bg-blue-500 rounded"
-              style={{ width: `${(stats.collectedCount.get(level)! / stats.total.get(level)!) * 100 || 0}%` }}
+              style={{
+                width: `${(stats.collectedCount.get(level)! / stats.total.get(level)!) * 100 || 0}%`,
+              }}
             />
           </div>
         </div>
